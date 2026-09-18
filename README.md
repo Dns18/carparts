@@ -30,3 +30,36 @@ Egy teljes körű Full-Stack webalkalmazás, amely Java Spring Boot backenddel �
    * Leadott rendelések története, azok törlésének lehetősége a saját előzményekből.
 
 ---
+
+# Auto Parts Webshop & Inventory Management System
+
+A full-stack web application that implements the operation of an auto parts warehouse and webshop using a Java Spring Boot backend and a modern Bootstrap-based frontend.
+
+---
+
+## 🛠️ Technologies Used
+
+* **Backend:** Java 26, Spring Boot, Spring Data JPA, Spring Security (HTTP Basic & Google OAuth2)
+* **Database:** H2 Database (embedded, file/memory-based)
+* **Frontend:** HTML5, Bootstrap 5 (Bootstrap Icons), Vanilla JavaScript (Fetch API)
+* **Build Tool:** Maven
+
+---
+
+## Key Features
+
+1. **Persistent Types (1:N Relationship):**
+   * **Categories (`PartCategory`):** e.g., Braking system, Suspension, etc. (Data: name, description, etc.).
+   * **Parts (`CarPart`):** Parts include a part number, name, price, stock quantity, and a category via a 1:N relationship.
+2. **Full CRUD Operations:** Both entities can be fully created, read, updated, and deleted from the UI.
+3. **Business Logic:**
+   * **Stock Reduction (Sales):** The system checks the inventory and returns an error message if there is insufficient stock.
+   * **Statistics:** Automatically calculates the total inventory value ($\sum \text{price} \times \text{quantity}$) and highlights low-stock items (< 5 pcs).
+4. **Authentication & Authorization:**
+   * Supports both traditional login and **Google OAuth2** authentication.
+   * Role-based access control (separation of ADMIN / USER interfaces).
+5. **Profile & Order Management:**
+   * Uploading a custom profile avatar (via Base64) or automatic retrieval of the Google account profile picture.
+   * History of placed orders and the ability to delete them from personal history.
+
+---
