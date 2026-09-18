@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autóalkatrész Webshop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar sticky-top">
+    <div class="topbar-inner">
+        <a href="/index.html" class="brand">
+            <span class="brand-mark">ALK</span>
+            <span class="brand-name">Autóalkatrész Webshop</span>
+        </a>
+        <div class="topbar-actions">
+            <a href="/admin.html" id="adminBtn" class="btn btn-sm btn-accent d-none">Raktárkezelés</a>
+            <button class="btn btn-sm btn-ghost-light" onclick="openCart()">
+                Kosár <span id="cartCount" class="mono">0</span>
+            </button>
+
+            <div class="profile-menu" id="profileMenu">
+                <button class="profile-trigger" id="profileTrigger" aria-haspopup="true" aria-expanded="false" onclick="toggleProfileMenu()">
+                    <span class="avatar" id="profileAvatar">?</span>
+                    <span class="profile-trigger-name" id="profileTriggerName">Fiók</span>
+                </button>
+                <div class="profile-dropdown d-none" id="profileDropdown">
+                    <div class="profile-dropdown-head">
+                        <p class="profile-dropdown-name" id="profileDropdownName">&nbsp;</p>
+                        <p class="profile-dropdown-email" id="profileDropdownEmail">&nbsp;</p>
+                    </div>
+                    <div class="profile-dropdown-items">
+                        <a href="/profile.html" class="profile-dropdown-item">Profilom</a>
+                        <button class="profile-dropdown-item is-danger" onclick="logout()">Kilépés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="shell">
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Alkatrészek</h1>
+            <p class="page-sub" id="resultCount">Készlet betöltése…</p>
+        </div>
+        <div class="search-field" style="min-width:min(100%,360px);">
+            <label class="visually-hidden" for="userSearchInput">Keresés</label>
+            <input type="text" id="userSearchInput" class="form-control"
+                   placeholder="Keresés név vagy cikkszám szerint" onkeyup="filterUserProducts()">
+        </div>
+    </div>
+
+    <div class="product-grid" id="productGrid"></div>
+</div>
+
+<!-- Kosár -->
+<div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Kosár</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body" id="cartBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-quiet" data-bs-dismiss="modal">Tovább nézelődöm</button>
+                <button type="button" class="btn btn-primary" id="checkoutBtn" onclick="checkout()">Rendelés leadása</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let allParts = [];
+
+    window.onload = async () => {
+        try {
+            const roleRes = await fetch('/api/auth/role');
+            const role = (await roleRes.text()).trim();
+            if (role === 'ADMIN') document.getElementById('adminBtn').classList.remove('d-none');
+        } catch (e) { /* a szerepkör lekérése nem kritikus */ }
+
+        await loadParts();
+        refreshCartCount();
+        loadProfileSummary();
+    };
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('profileMenu');
+        if (menu && !menu.contains(e.target)) closeProfileMenu();
+    });
+
+    function toggleProfileMenu() {
+        const dd = document.getElementById('profileDropdown');
+        dd.classList.contains('d-none') ? openProfileMenu() : closeProfileMenu();
+    }
+    function openProfileMenu() {
+        document.getElementById('profileDropdown').classList.remove('d-none');
+        document.getElementById('profileTrigger').setAttribute('aria-expanded', 'true');
+    }
+    function closeProfileMenu() {
+        document.getElementById('profileDropdown').classList.add('d-none');
+        document.getElementById('profileTrigger').setAttribute('aria-expanded', 'false');
+    }
+
+    async function loadProfileSummary() {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (!res.ok) return;
+            const user = await res.json();
+            const avatarEl = document.getElementById('profileAvatar');
+
+            if (user.avatarUrl) {
+                avatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="Avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+            } else {
+                const initials = (user.username || '?').slice(0, 2).toUpperCase();
+                avatarEl.textContent = initials;
+            }
+
+            document.getElementById('profileTriggerName').textContent = user.username || 'Fiók';
+            document.getElementById('profileDropdownName').textContent = user.username || '';
+            document.getElementById('profileDropdownEmail').textContent = user.email || '';
+        } catch (e) { /* csendben */ }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => (
+            { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+        ));
+    }
+
+    const huf = n => Number(n).toLocaleString('hu-HU') + ' Ft';
+
+    async function loadParts() {
+        try {
+            const res = await fetch('/api/parts');
+            allParts = await res.json();
+            renderProducts(allParts);
+        } catch (e) {
+            document.getElementById('productGrid').innerHTML =
+                '<div class="empty"><strong>A készlet nem tölthető be</strong>Frissítsd az oldalt, vagy próbáld újra később.</div>';
+        }
+    }
+
+    function renderProducts(parts) {
+        const grid = document.getElementById('productGrid');
+        const counter = document.getElementById('resultCount');
+
+        if (!parts.length) {
+            grid.innerHTML = '<div class="empty"><strong>Nincs találat</strong>Próbálj rövidebb keresőszót vagy cikkszámrészletet.</div>';
+            counter.textContent = '0 találat';
+            return;
+        }
+
+        counter.textContent = parts.length === allParts.length
+            ? parts.length + ' alkatrész a készletben'
+            : parts.length + ' találat ' + allParts.length + ' alkatrészből';
+
+        grid.innerHTML = parts.map(p => {
+            const out = p.stockQuantity <= 0;
+            const low = !out && p.stockQuantity < 5;
+            const stockClass = out ? 'is-out' : (low ? 'is-low' : '');
+            const stockText = out ? 'Elfogyott' : p.stockQuantity + ' db';
+
+            return `
+            <article class="product">
+                <p class="product-code">${escapeHtml(p.partNumber)}</p>
+                <h2 class="product-name">${escapeHtml(p.name)}</h2>
+                <div class="product-meta">
+                    <span class="product-price">${huf(p.price)}</span>
+                    <span class="stock ${stockClass}">${stockText}</span>
+                </div>
+                <button class="btn btn-primary" ${out ? 'disabled' : ''} onclick="addToCart(${p.id})">
+                    ${out ? 'Nincs készleten' : 'Kosárba'}
+                </button>
+            </article>`;
+        }).join('');
+    }
+
+    function filterUserProducts() {
+        const term = document.getElementById('userSearchInput').value.toLowerCase().trim();
+        if (!term) return renderProducts(allParts);
+
+        renderProducts(allParts.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            p.partNumber.toLowerCase().includes(term)
+        ));
+    }
+
+    /* ---- Kosár ---- */
+
+    async function addToCart(id) {
+        try {
+            const res = await fetch(`/api/cart/add/${id}`, { method: 'POST' });
+            if (res.ok) {
+                toast('Betettük a kosárba.');
+                refreshCartCount();
+            } else {
+                toast('Az alkatrészt nem sikerült a kosárba tenni.', 'error');
+            }
+        } catch (e) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    async function refreshCartCount() {
+        try {
+            const res = await fetch('/api/cart');
+            const items = await res.json();
+            const count = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
+            document.getElementById('cartCount').textContent = count;
+        } catch (e) { /* csendben */ }
+    }
+
+    async function openCart() {
+        const body = document.getElementById('cartBody');
+        body.innerHTML = '<p class="empty">Betöltés…</p>';
+        new bootstrap.Modal(document.getElementById('cartModal')).show();
+
+        try {
+            const res = await fetch('/api/cart');
+            const items = await res.json();
+
+            if (!items.length) {
+                body.innerHTML = '<div class="empty"><strong>A kosár üres</strong>Válassz alkatrészt a listából.</div>';
+                document.getElementById('checkoutBtn').disabled = true;
+                return;
+            }
+
+            document.getElementById('checkoutBtn').disabled = false;
+
+            let total = 0;
+            const rows = items.map(item => {
+                const line = item.part.price * item.quantity;
+                total += line;
+                return `
+                <li>
+                    <div>
+                        <p class="row-title">${escapeHtml(item.part.name)}</p>
+                        <p class="row-sub mono">${escapeHtml(item.part.partNumber)} · ${item.quantity} × ${huf(item.part.price)}</p>
+                    </div>
+                    <span class="mono">${huf(line)}</span>
+                </li>`;
+            }).join('');
+
+            body.innerHTML = `
+                <ul class="rows">${rows}</ul>
+                <div class="cart-total">
+                    <span>Fizetendő</span>
+                    <span class="cart-total-value">${huf(total)}</span>
+                </div>`;
+        } catch (e) {
+            body.innerHTML = '<div class="empty"><strong>A kosár nem tölthető be</strong>Próbáld újra.</div>';
+        }
+    }
+
+    async function checkout() {
+        const btn = document.getElementById('checkoutBtn');
+        btn.disabled = true;
+        btn.textContent = 'Feldolgozás…';
+
+        try {
+            const res = await fetch('/api/cart/checkout', { method: 'POST' });
+            const msg = await res.text();
+
+            if (res.ok) {
+                toast(msg || 'A rendelést rögzítettük.');
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                toast(msg || 'A rendelést nem sikerült leadni.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Rendelés leadása';
+            }
+        } catch (e) {
+            toast('A szerver nem válaszol.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Rendelés leadása';
+        }
+    }
+
+    function toast(message, type = 'success') {
+        const el = document.createElement('div');
+        el.className = 'toast-note' + (type === 'error' ? ' is-error' : type === 'info' ? ' is-info' : '');
+        el.textContent = message;
+        document.getElementById('toastStack').appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+
+    function logout() { window.location.href = '/logout'; }
+</script>
+</body>
+</html>

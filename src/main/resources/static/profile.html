@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profilom · Autóalkatrész Webshop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar sticky-top">
+    <div class="topbar-inner">
+        <a href="/index.html" class="brand">
+            <span class="brand-mark">ALK</span>
+            <span class="brand-name">Autóalkatrész Webshop</span>
+        </a>
+        <div class="topbar-actions">
+            <a href="/admin.html" id="adminBtn" class="btn btn-sm btn-accent d-none">Raktárkezelés</a>
+            <a href="/index.html" class="btn btn-sm btn-ghost-light">Vissza a webshopba</a>
+            <button class="btn btn-sm btn-ghost-light" onclick="logout()">Kilépés</button>
+        </div>
+    </div>
+</header>
+
+<div class="shell" style="max-width: 640px;">
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Profilom</h1>
+            <p class="page-sub">Fiókadatok és beállítások.</p>
+        </div>
+    </div>
+
+    <div class="panel mb-4">
+        <div class="profile-header">
+            <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                <span class="avatar avatar-lg" id="profileCardAvatar" style="overflow: hidden;">?</span>
+                <input type="file" id="avatarUpload" class="d-none" accept="image/*" onchange="uploadAvatar(this)">
+                <div class="d-flex gap-1 mt-2">
+                    <button class="btn btn-sm btn-ghost-light text-muted" onclick="document.getElementById('avatarUpload').click()" style="font-size: 11px; padding: 2px 6px; border: 1px solid #ddd;">Kép cseréje</button>
+                    <button class="btn btn-sm btn-ghost-light text-muted d-none" id="removeAvatarBtn" onclick="removeAvatar()" style="font-size: 11px; padding: 2px 6px; border: 1px solid #ddd;">Kép törlése</button>
+                </div>
+            </div>
+
+            <div class="ms-3">
+                <h2 class="profile-header-name" id="profileName">&nbsp;</h2>
+                <p class="profile-header-role"><span class="tag" id="profileRole">Felhasználó</span></p>
+            </div>
+        </div>
+        <div class="profile-rows">
+            <div class="profile-row">
+                <span class="profile-row-label">Felhasználónév</span>
+                <span class="profile-row-value" id="rowUsername">–</span>
+            </div>
+            <div class="profile-row">
+                <span class="profile-row-label">E-mail cím</span>
+                <span class="profile-row-value" id="rowEmail">–</span>
+            </div>
+            <div class="profile-row">
+                <span class="profile-row-label">Bejelentkezés módja</span>
+                <span class="profile-row-value" id="rowProvider">–</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rendelési előzmények -->
+    <div class="panel mb-4">
+        <div class="panel-head">
+            <h2 class="panel-title">Eddigi rendeléseim</h2>
+        </div>
+        <ul id="orderHistoryList" class="rows">
+            <li><div class="empty">Még nem adtál le rendelést.</div></li>
+        </ul>
+    </div>
+
+    <div class="panel mb-4" id="passwordPanel">
+        <div class="panel-head">
+            <h2 class="panel-title">Jelszó módosítása</h2>
+        </div>
+        <div class="panel-body">
+            <div id="pwAlert" class="alert d-none" role="alert"></div>
+            <form id="passwordForm" novalidate>
+                <div class="mb-3">
+                    <label class="field-label" for="currentPassword">Jelenlegi jelszó</label>
+                    <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password">
+                </div>
+                <div class="mb-3">
+                    <label class="field-label" for="newPassword">Új jelszó</label>
+                    <input type="password" id="newPassword" class="form-control" required minlength="6" autocomplete="new-password">
+                    <p class="field-hint">Legalább 6 karakter.</p>
+                </div>
+                <button type="submit" class="btn btn-primary" id="pwSubmitBtn">Jelszó mentése</button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script>
+    window.onload = async () => {
+        await loadProfile();
+        await loadHistory();
+        try {
+            const roleRes = await fetch('/api/auth/role');
+            const role = (await roleRes.text()).trim();
+            if (role === 'ADMIN') document.getElementById('adminBtn').classList.remove('d-none');
+        } catch (e) { }
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => (
+            { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+        ));
+    }
+
+    async function loadHistory() {
+        try {
+            const res = await fetch('/api/orders/my');
+            if (!res.ok) return;
+            const orders = await res.json();
+            const list = document.getElementById('orderHistoryList');
+
+            if (!orders.length) {
+                list.innerHTML = '<li><div class="empty">Még nem adtál le rendelést.</div></li>';
+                return;
+            }
+
+            list.innerHTML = orders.map(o => `
+                <li style="align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <p class="row-title">${escapeHtml(o.partName)}</p>
+                        <p class="row-sub mono">${o.quantity} db · Rendelve: ${new Date(o.orderDate).toLocaleDateString('hu-HU')}</p>
+                        <button class="btn btn-sm btn-danger-quiet mt-2" onclick="deleteOrder(${o.id})" style="padding: 2px 8px; font-size: 12px;">Törlés az előzményekből</button>
+                    </div>
+                    <span class="mono fw-bold">${Number(o.totalPrice).toLocaleString('hu-HU')} Ft</span>
+                </li>
+            `).join('');
+        } catch (e) {
+            console.error("Hiba a rendelések betöltésekor:", e);
+        }
+    }
+
+    async function deleteOrder(id) {
+        if (!confirm('Biztosan törlöd ezt a tételt az előzményekből?')) return;
+        try {
+            await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+            toast('Rendelés törölve az előzményekből.');
+            loadHistory();
+        } catch (e) {
+            toast('Hiba a törlés során.', 'error');
+        }
+    }
+
+    async function loadProfile() {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (!res.ok) throw new Error('no profile');
+            const user = await res.json();
+
+            const avatarEl = document.getElementById('profileCardAvatar');
+            const removeBtn = document.getElementById('removeAvatarBtn');
+            if (user.avatarUrl) {
+                avatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">`;
+                removeBtn.classList.remove('d-none');
+            } else {
+                const initials = (user.username || '?').slice(0, 2).toUpperCase();
+                avatarEl.textContent = initials;
+                removeBtn.classList.add('d-none');
+            }
+
+            document.getElementById('profileName').textContent = user.username || '';
+            document.getElementById('profileRole').textContent = user.role === 'ADMIN' ? 'Raktárkezelő' : 'Vásárló';
+            document.getElementById('rowUsername').textContent = user.username || '–';
+            document.getElementById('rowEmail').textContent = user.email || '–';
+
+            const isOAuth = !!user.oauthProvider;
+            document.getElementById('rowProvider').textContent = isOAuth
+                ? ('Google (' + user.email + ')')
+                : 'Felhasználónév és jelszó';
+
+            if (isOAuth) document.getElementById('passwordPanel').classList.add('d-none');
+        } catch (e) {
+            toast('A profiladatok nem tölthetők be.', 'error');
+        }
+    }
+
+    function uploadAvatar(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast('A kép mérete túl nagy! Maximum 5 MB lehet.', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64 = e.target.result;
+            try {
+                const res = await fetch('/api/auth/avatar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ avatarUrl: base64 })
+                });
+                if(res.ok) {
+                    toast('Profilkép sikeresen frissítve!');
+                    loadProfile();
+                } else {
+                    toast('Hiba a kép feltöltésekor.', 'error');
+                }
+            } catch (err) {
+                toast('A szerver nem válaszol vagy túl nagy a kép.', 'error');
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function removeAvatar() {
+        if (!confirm('Biztosan törlöd a profilképed? Ez visszaállítja az alapértelmezett (monogramos) ikont.')) return;
+
+        try {
+            const res = await fetch('/api/auth/avatar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatarUrl: null })
+            });
+            if (res.ok) {
+                toast('Profilkép törölve.');
+                loadProfile();
+            } else {
+                toast('Hiba a kép törlésekor.', 'error');
+            }
+        } catch (err) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const btn = document.getElementById('pwSubmitBtn');
+
+        if (newPassword.length < 6) {
+            showPwAlert('danger', 'Az új jelszónak legalább 6 karakteresnek kell lennie.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Mentés…';
+
+        try {
+            const res = await fetch('/api/auth/password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            const text = await res.text();
+
+            if (res.ok) {
+                showPwAlert('success', 'A jelszót frissítettük.');
+                document.getElementById('passwordForm').reset();
+            } else {
+                showPwAlert('danger', text || 'A jelszót nem sikerült módosítani.');
+            }
+        } catch (e) {
+            showPwAlert('danger', 'A szerver nem válaszol.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Jelszó mentése';
+        }
+    });
+
+    function showPwAlert(type, message) {
+        const box = document.getElementById('pwAlert');
+        box.className = 'alert alert-' + type;
+        box.textContent = message;
+    }
+
+    function toast(message, type = 'success') {
+        const el = document.createElement('div');
+        el.className = 'toast-note' + (type === 'error' ? ' is-error' : '');
+        el.textContent = message;
+        document.getElementById('toastStack').appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+
+    function logout() { window.location.href = '/logout'; }
+</script>
+</body>
+</html>

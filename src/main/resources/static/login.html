@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Belépés · Autóalkatrész Raktár</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="auth-layout">
+
+    <aside class="auth-aside">
+        <div class="brand">
+            <span class="brand-mark">ALK</span>
+            <span class="brand-name">Autóalkatrész Raktár</span>
+        </div>
+
+        <div>
+            <h1 class="auth-aside-title">Minden alkatrész, egy helyen nyilvántartva.</h1>
+            <p class="auth-aside-text">
+                Készletkövetés cikkszám szerint, polchelyekhez rendelt kategóriák
+                és azonnali rendelés a webshopból.
+            </p>
+
+            <ul class="spec-list">
+                <li>Készlet valós időben <span>élő</span></li>
+                <li>Cikkszámos azonosítás <span>ENG-01</span></li>
+                <li>Polchely kategóriánként <span>C-2</span></li>
+            </ul>
+        </div>
+
+        <p class="auth-aside-text" style="font-size:13px;">Raktárkezelő rendszer</p>
+    </aside>
+
+    <main class="auth-main">
+        <div class="auth-card">
+            <h2 class="auth-title">Belépés</h2>
+            <p class="auth-lead">Add meg a fiókod adatait a folytatáshoz.</p>
+
+            <div id="error-msg" class="alert alert-danger d-none" role="alert">
+                A felhasználónév vagy a jelszó nem megfelelő. Próbáld újra.
+            </div>
+            <div id="logout-msg" class="alert alert-success d-none" role="alert">
+                Kiléptél a fiókodból.
+            </div>
+
+            <form action="/perform_login" method="POST" novalidate>
+                <div class="mb-3">
+                    <label class="field-label" for="username">Felhasználónév</label>
+                    <input type="text" id="username" name="username" class="form-control"
+                           required autocomplete="username" autofocus placeholder="kovacspeter">
+                </div>
+                <div class="mb-4">
+                    <label class="field-label" for="password">Jelszó</label>
+                    <input type="password" id="password" name="password" class="form-control"
+                           required autocomplete="current-password" placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-custom">Belépés</button>
+            </form>
+
+            <div class="auth-divider">vagy</div>
+
+            <a href="/oauth2/authorization/google" class="btn btn-google">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2.1 5-4.4 6.6v5.5h7.1c4.1-3.8 6.6-9.4 6.6-16.1z"/>
+                    <path fill="#34A853" d="M24 46c6 0 11-2 14.5-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.6-3.9-12.3-9.1H4.4v5.7C7.9 40.9 15.4 46 24 46z"/>
+                    <path fill="#FBBC05" d="M11.7 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.4C2.9 17.2 2 20.5 2 24s.9 6.8 2.4 9.8l7.3-5.7z"/>
+                    <path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.2 30 2 24 2 15.4 2 7.9 7.1 4.4 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.3-9.1z"/>
+                </svg>
+                Belépés Google-fiókkal
+            </a>
+
+            <p class="auth-switch">
+                Még nincs fiókod? <a href="/register.html">Regisztrálj</a>
+            </p>
+        </div>
+    </main>
+
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('error'))  document.getElementById('error-msg').classList.remove('d-none');
+    if (params.has('logout')) {
+        document.getElementById('logout-msg').classList.remove('d-none');
+        // Ez a sor azonnal eltávolítja a ?logout részt a címsorból, így frissítéskor nem jön vissza a felirat!
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raktárkezelés · Autóalkatrész Raktár</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <a href="/admin.html" class="brand">
+            <span class="brand-mark">ALK</span>
+            <span class="brand-name">Autóalkatrész Raktár</span>
+            <span class="brand-role">RAKTÁRKEZELÉS</span>
+        </a>
+        <div class="topbar-actions">
+            <a href="/index.html" class="btn btn-sm btn-ghost-light">Webshop nézet</a>
+
+            <div class="profile-menu" id="profileMenu">
+                <button class="profile-trigger" id="profileTrigger" aria-haspopup="true" aria-expanded="false" onclick="toggleProfileMenu()">
+                    <span class="avatar" id="profileAvatar">?</span>
+                    <span class="profile-trigger-name" id="profileTriggerName">Fiók</span>
+                </button>
+                <div class="profile-dropdown d-none" id="profileDropdown">
+                    <div class="profile-dropdown-head">
+                        <p class="profile-dropdown-name" id="profileDropdownName">&nbsp;</p>
+                        <p class="profile-dropdown-email" id="profileDropdownEmail">&nbsp;</p>
+                    </div>
+                    <div class="profile-dropdown-items">
+                        <a href="/profile.html" class="profile-dropdown-item">Profilom</a>
+                        <button class="profile-dropdown-item is-danger" onclick="logout()">Kilépés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="shell">
+
+    <div class="page-head">
+        <div>
+            <h1 class="page-title">Készlet áttekintése</h1>
+            <p class="page-sub">Alkatrészek és kategóriák karbantartása.</p>
+        </div>
+    </div>
+
+    <div class="metrics mb-4">
+        <div class="metric">
+            <p class="metric-label">Raktárkészlet értéke</p>
+            <p class="metric-value" id="totalValue">0 Ft</p>
+        </div>
+        <div class="metric">
+            <p class="metric-label">Alacsony készlet (5 db alatt)</p>
+            <p class="metric-value" id="lowStockCount">0 tétel</p>
+        </div>
+        <div class="metric">
+            <p class="metric-label">Nyilvántartott tételek</p>
+            <p class="metric-value" id="partCount">0</p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="parts-tab" data-bs-toggle="tab"
+                    data-bs-target="#parts" type="button" role="tab">Alkatrészek</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="categories-tab" data-bs-toggle="tab"
+                    data-bs-target="#categories" type="button" role="tab">Kategóriák</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+
+        <!-- Alkatrészek -->
+        <div class="tab-pane fade show active" id="parts" role="tabpanel">
+
+            <section class="panel mb-4">
+                <div class="panel-head">
+                    <h2 class="panel-title" id="partFormTitle">Új alkatrész felvétele</h2>
+                    <button type="button" class="btn btn-sm btn-quiet d-none" id="cancelEditBtn" onclick="cancelEdit()">
+                        Szerkesztés elvetése
+                    </button>
+                </div>
+                <div class="panel-body">
+                    <form id="partForm" onsubmit="savePart(event)" class="row g-3">
+                        <input type="hidden" id="partId">
+
+                        <div class="col-6 col-md-2">
+                            <label class="field-label" for="partNum">Cikkszám</label>
+                            <input type="text" id="partNum" class="form-control mono" placeholder="ENG-01" required>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="field-label" for="partName">Megnevezés</label>
+                            <input type="text" id="partName" class="form-control" placeholder="Olajszűrő" required>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="field-label" for="partCat">Kategória</label>
+                            <select id="partCat" class="form-select" required></select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="field-label" for="partPrice">Ár (Ft)</label>
+                            <input type="number" id="partPrice" class="form-control mono" min="0" step="1" required>
+                        </div>
+                        <div class="col-6 col-md-1">
+                            <label class="field-label" for="partStock">Készlet</label>
+                            <input type="number" id="partStock" class="form-control mono" min="0" step="1" required>
+                        </div>
+
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary" id="partSubmitBtn">Alkatrész mentése</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Alkatrészek</h2>
+                    <div class="search-field" style="min-width:min(100%,320px);">
+                        <label class="visually-hidden" for="adminSearchInput">Keresés</label>
+                        <input type="text" id="adminSearchInput" class="form-control"
+                               placeholder="Keresés név vagy cikkszám szerint" onkeyup="filterAdminTable()">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Cikkszám</th>
+                            <th>Megnevezés</th>
+                            <th>Kategória</th>
+                            <th class="text-end">Ár</th>
+                            <th>Készlet</th>
+                            <th class="col-actions">Művelet</th>
+                        </tr>
+                        </thead>
+                        <tbody id="partsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Kategóriák -->
+        <div class="tab-pane fade" id="categories" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-12 col-lg-5">
+                    <section class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title" id="categoryFormTitle">Új kategória</h2>
+                            <button type="button" class="btn btn-sm btn-quiet d-none" id="cancelCategoryEditBtn" onclick="cancelCategoryEdit()">
+                                Szerkesztés elvetése
+                            </button>
+                        </div>
+                        <div class="panel-body">
+                            <form id="categoryForm" onsubmit="saveCategory(event)">
+                                <input type="hidden" id="catId">
+                                <div class="mb-3">
+                                    <label class="field-label" for="catName">Kategória neve</label>
+                                    <input type="text" id="catName" class="form-control" required placeholder="Motoralkatrészek">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="field-label" for="catDesc">Leírás</label>
+                                    <input type="text" id="catDesc" class="form-control" placeholder="Nem kötelező">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="field-label" for="catShelf">Polchely</label>
+                                    <input type="text" id="catShelf" class="form-control mono" required placeholder="C-2">
+                                    <p class="field-hint">A raktárban lévő fizikai hely azonosítója.</p>
+                                </div>
+                                <button type="submit" class="btn btn-primary" id="categorySubmitBtn">Kategória mentése</button>
+                            </form>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <section class="panel">
+                        <div class="panel-head"><h2 class="panel-title">Kategóriák</h2></div>
+                        <ul id="categoryList" class="rows"></ul>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let allParts = [];
+    let allCategories = [];
+
+    window.onload = () => {
+        loadCategories();
+        loadParts();
+        loadProfileSummary();
+    };
+
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('profileMenu');
+        if (menu && !menu.contains(e.target)) closeProfileMenu();
+    });
+
+    function toggleProfileMenu() {
+        const dd = document.getElementById('profileDropdown');
+        dd.classList.contains('d-none') ? openProfileMenu() : closeProfileMenu();
+    }
+    function openProfileMenu() {
+        document.getElementById('profileDropdown').classList.remove('d-none');
+        document.getElementById('profileTrigger').setAttribute('aria-expanded', 'true');
+    }
+    function closeProfileMenu() {
+        document.getElementById('profileDropdown').classList.add('d-none');
+        document.getElementById('profileTrigger').setAttribute('aria-expanded', 'false');
+    }
+
+    async function loadProfileSummary() {
+        try {
+            const res = await fetch('/api/auth/me');
+            if (!res.ok) return;
+            const user = await res.json();
+            const initials = (user.username || '?').slice(0, 2).toUpperCase();
+            document.getElementById('profileAvatar').textContent = initials;
+            document.getElementById('profileTriggerName').textContent = user.username || 'Fiók';
+            document.getElementById('profileDropdownName').textContent = user.username || '';
+            document.getElementById('profileDropdownEmail').textContent = user.email || '';
+        } catch (e) { /* csendben */ }
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => (
+            { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+        ));
+    }
+
+    const huf = n => Number(n).toLocaleString('hu-HU') + ' Ft';
+
+    /* ---- Kategóriák ---- */
+
+    async function loadCategories() {
+        const list = document.getElementById('categoryList');
+        try {
+            const res = await fetch('/api/categories');
+            const categories = await res.json();
+            allCategories = categories;
+
+            list.innerHTML = categories.length ? categories.map(c => `
+                <li data-id="${c.id}">
+                    <div>
+                        <p class="row-title">${escapeHtml(c.name)}</p>
+                        <p class="row-sub">${escapeHtml(c.description || 'Nincs leírás')}</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="shelf">${escapeHtml(c.shelfLocation)}</span>
+                        <button class="btn btn-sm btn-quiet" onclick="editCategory(${c.id})">Szerkesztés</button>
+                        <button class="btn btn-sm btn-danger-quiet" onclick="deleteCategory(${c.id})">Törlés</button>
+                    </div>
+                </li>`).join('')
+                : '<li><div class="empty"><strong>Még nincs kategória</strong>Vedd fel az elsőt a bal oldali űrlapon.</div></li>';
+
+            document.getElementById('partCat').innerHTML = categories.length
+                ? categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')
+                : '<option value="" disabled selected>Előbb vegyél fel kategóriát</option>';
+        } catch (e) {
+            toast('A kategóriák nem tölthetők be.', 'error');
+        }
+    }
+
+    async function saveCategory(e) {
+        e.preventDefault();
+        const id = document.getElementById('catId').value;
+        const payload = {
+            name: document.getElementById('catName').value.trim(),
+            description: document.getElementById('catDesc').value.trim(),
+            shelfLocation: document.getElementById('catShelf').value.trim()
+        };
+
+        try {
+            const res = await fetch(id ? `/api/categories/${id}` : '/api/categories', {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) return toast('A kategóriát nem sikerült menteni.', 'error');
+
+            toast(id ? 'Kategória frissítve.' : 'Kategória mentve.');
+            cancelCategoryEdit();
+            loadCategories();
+        } catch (err) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    function editCategory(id) {
+        const c = allCategories.find(x => x.id === id);
+        if (!c) return;
+
+        document.getElementById('catId').value = c.id;
+        document.getElementById('catName').value = c.name;
+        document.getElementById('catDesc').value = c.description || '';
+        document.getElementById('catShelf').value = c.shelfLocation;
+
+        document.getElementById('categoryFormTitle').textContent = c.name + ' szerkesztése';
+        document.getElementById('categorySubmitBtn').textContent = 'Módosítás mentése';
+        document.getElementById('cancelCategoryEditBtn').classList.remove('d-none');
+
+        document.querySelectorAll('#categoryList li').forEach(li =>
+            li.classList.toggle('is-editing', Number(li.dataset.id) === id));
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelCategoryEdit() {
+        document.getElementById('categoryForm').reset();
+        document.getElementById('catId').value = '';
+        document.getElementById('categoryFormTitle').textContent = 'Új kategória';
+        document.getElementById('categorySubmitBtn').textContent = 'Kategória mentése';
+        document.getElementById('cancelCategoryEditBtn').classList.add('d-none');
+        document.querySelectorAll('#categoryList li').forEach(li => li.classList.remove('is-editing'));
+    }
+
+    async function deleteCategory(id) {
+        if (!confirm('Törlöd ezt a kategóriát?')) return;
+        try {
+            const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                toast('A kategória nem törölhető, amíg alkatrész tartozik hozzá.', 'error');
+            } else {
+                toast('Kategória törölve.');
+            }
+            loadCategories();
+        } catch (e) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    /* ---- Alkatrészek ---- */
+
+    async function loadParts() {
+        try {
+            const res = await fetch('/api/parts');
+            allParts = await res.json();
+            renderParts(allParts);
+            updateMetrics(allParts);
+        } catch (e) {
+            document.getElementById('partsTableBody').innerHTML =
+                '<tr><td colspan="6"><div class="empty"><strong>A készlet nem tölthető be</strong>Frissítsd az oldalt.</div></td></tr>';
+        }
+    }
+
+    function renderParts(parts) {
+        const tbody = document.getElementById('partsTableBody');
+
+        if (!parts.length) {
+            tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><strong>Nincs megjeleníthető tétel</strong>Vegyél fel alkatrészt, vagy módosítsd a keresést.</div></td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = parts.map(p => {
+            const out = p.stockQuantity <= 0;
+            const low = !out && p.stockQuantity < 5;
+            const stockClass = out ? 'is-out' : (low ? 'is-low' : '');
+
+            return `
+            <tr data-id="${p.id}">
+                <td class="cell-code">${escapeHtml(p.partNumber)}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td><span class="tag">${escapeHtml(p.category ? p.category.name : 'Nincs')}</span></td>
+                <td class="cell-num">${huf(p.price)}</td>
+                <td><span class="stock ${stockClass}">${p.stockQuantity} db</span></td>
+                <td class="col-actions">
+                    <button class="btn btn-sm btn-quiet" onclick="editPart(${p.id})">Szerkesztés</button>
+                    <button class="btn btn-sm btn-danger-quiet" onclick="deletePart(${p.id})">Törlés</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function updateMetrics(parts) {
+        const total = parts.reduce((sum, p) => sum + p.price * p.stockQuantity, 0);
+        const low = parts.filter(p => p.stockQuantity < 5).length;
+
+        document.getElementById('totalValue').textContent = huf(total);
+        document.getElementById('partCount').textContent = parts.length;
+
+        const lowEl = document.getElementById('lowStockCount');
+        lowEl.textContent = low + ' tétel';
+        lowEl.classList.toggle('is-alert', low > 0);
+    }
+
+    function filterAdminTable() {
+        const term = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+        if (!term) return renderParts(allParts);
+
+        renderParts(allParts.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            p.partNumber.toLowerCase().includes(term)
+        ));
+    }
+
+    async function savePart(e) {
+        e.preventDefault();
+        const id = document.getElementById('partId').value;
+
+        const payload = {
+            partNumber: document.getElementById('partNum').value.trim(),
+            name: document.getElementById('partName').value.trim(),
+            category: { id: Number(document.getElementById('partCat').value) },
+            price: Number(document.getElementById('partPrice').value),
+            stockQuantity: Number(document.getElementById('partStock').value)
+        };
+
+        try {
+            const res = await fetch(id ? `/api/parts/${id}` : '/api/parts', {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) return toast('Az alkatrészt nem sikerült menteni.', 'error');
+
+            toast(id ? 'Alkatrész frissítve.' : 'Alkatrész felvéve.');
+            cancelEdit();
+            loadParts();
+        } catch (err) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    function editPart(id) {
+        const p = allParts.find(x => x.id === id);
+        if (!p) return;
+
+        new bootstrap.Tab(document.querySelector('#parts-tab')).show();
+
+        document.getElementById('partId').value = p.id;
+        document.getElementById('partNum').value = p.partNumber;
+        document.getElementById('partName').value = p.name;
+        document.getElementById('partCat').value = p.category ? p.category.id : '';
+        document.getElementById('partPrice').value = p.price;
+        document.getElementById('partStock').value = p.stockQuantity;
+
+        document.getElementById('partFormTitle').textContent = p.name + ' szerkesztése';
+        document.getElementById('partSubmitBtn').textContent = 'Módosítás mentése';
+        document.getElementById('cancelEditBtn').classList.remove('d-none');
+
+        document.querySelectorAll('#partsTableBody tr').forEach(tr =>
+            tr.classList.toggle('is-editing', Number(tr.dataset.id) === id));
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        document.getElementById('partForm').reset();
+        document.getElementById('partId').value = '';
+        document.getElementById('partFormTitle').textContent = 'Új alkatrész felvétele';
+        document.getElementById('partSubmitBtn').textContent = 'Alkatrész mentése';
+        document.getElementById('cancelEditBtn').classList.add('d-none');
+        document.querySelectorAll('#partsTableBody tr').forEach(tr => tr.classList.remove('is-editing'));
+    }
+
+    async function deletePart(id) {
+        const p = allParts.find(x => x.id === id);
+        if (!confirm(`Törlöd a(z) ${p ? p.name : 'kiválasztott'} tételt a nyilvántartásból?`)) return;
+
+        try {
+            const res = await fetch(`/api/parts/${id}`, { method: 'DELETE' });
+            if (!res.ok) return toast('Az alkatrészt nem sikerült törölni.', 'error');
+            toast('Alkatrész törölve.');
+            loadParts();
+        } catch (e) {
+            toast('A szerver nem válaszol.', 'error');
+        }
+    }
+
+    function toast(message, type = 'success') {
+        const el = document.createElement('div');
+        el.className = 'toast-note' + (type === 'error' ? ' is-error' : '');
+        el.textContent = message;
+        document.getElementById('toastStack').appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+
+    function logout() { window.location.href = '/logout'; }
+</script>
+</body>
+</html>
