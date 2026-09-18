@@ -13,7 +13,7 @@ Egy teljes körű Full-Stack webalkalmazás, amely Java Spring Boot backenddel �
 
 ---
 
-## ✨ Főbb funkciók és teljesített szempontok
+## Főbb funkciók
 
 1. **Perzisztált típusok (1:N kapcsolat):**
    * **Kategóriák (`PartCategory`):** Pl. Fékrendszer, Futómű, stb. (Adatok: név, leírás, stb.).
